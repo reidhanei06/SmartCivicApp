@@ -46,7 +46,9 @@ const ISSUE_TYPES = [
   { label: "Other", icon: "📌" },
 ];
 
-const STATUS_STYLES = {
+type StatusKey = "Pending" | "In Progress" | "Resolved";
+
+const STATUS_STYLES: Record<StatusKey, { bg: string; text: string; dot: string; border: string }> = {
   Pending: {
     bg: "#FFF3E0",
     text: "#E65100",
@@ -109,7 +111,7 @@ export default function App() {
     setScreen("track");
   };
 
-  const updateStatus = (id, status) => {
+  const updateStatus = (id: number, status: StatusKey) => {
     setComplaints(complaints.map((c) => (c.id === id ? { ...c, status } : c)));
   };
 
@@ -209,7 +211,7 @@ export default function App() {
 
           <Text style={s.sectionTitle}>Recent Activity</Text>
           {complaints.slice(0, 3).map((c) => {
-            const ss = STATUS_STYLES[c.status];
+            const ss = STATUS_STYLES[c.status as StatusKey];
             return (
               <View
                 key={c.id}
@@ -302,8 +304,9 @@ export default function App() {
               input.type = "file";
               input.accept = "image/*";
               input.capture = "environment";
-              input.onchange = (e) => {
-                const file = e.target.files[0];
+              input.onchange = (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                const file = target?.files?.[0];
                 if (file) Alert.alert("Photo Added!", file.name);
               };
               input.click();
@@ -336,7 +339,7 @@ export default function App() {
             {complaints.length} complaints submitted
           </Text>
           {complaints.map((c) => {
-            const ss = STATUS_STYLES[c.status];
+            const ss = STATUS_STYLES[c.status as StatusKey];
             return (
               <View
                 key={c.id}
@@ -445,7 +448,7 @@ export default function App() {
             </View>
           </View>
           {complaints.map((c) => {
-            const ss = STATUS_STYLES[c.status];
+            const ss = STATUS_STYLES[c.status as StatusKey];
             return (
               <View
                 key={c.id}
