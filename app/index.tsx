@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { apiClient } from "../service/api";
 import {
   Alert,
   ScrollView,
@@ -9,33 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const COMPLAINTS_DATA = [
-  {
-    id: 1,
-    type: "Road Damage",
-    desc: "Big pothole near bus stop causing accidents",
-    status: "Pending",
-    loc: "Anna Nagar",
-    time: "2 hrs ago",
-  },
-  {
-    id: 2,
-    type: "Street Light",
-    desc: "Street light not working for 3 days",
-    status: "In Progress",
-    loc: "T Nagar",
-    time: "1 day ago",
-  },
-  {
-    id: 3,
-    type: "Garbage",
-    desc: "Garbage not collected this week",
-    status: "Resolved",
-    loc: "Adyar",
-    time: "3 days ago",
-  },
-];
 
 const ISSUE_TYPES = [
   { label: "Road Damage", icon: "🛣️" },
@@ -71,7 +45,38 @@ const STATUS_STYLES: Record<StatusKey, { bg: string; text: string; dot: string; 
 
 export default function App() {
   const [screen, setScreen] = useState("home");
-  const [complaints, setComplaints] = useState(COMPLAINTS_DATA);
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      // Calls GET http://10.0.2.2:5000/reports 
+      const response = await apiClient("/reports");
+      // Your backend returns { message: "...", data: [...] }
+      if (response && response.data) {
+        // Map backend names to match your frontend UI variables
+        const mappedData = response.data.map((item: any) => ({
+          id: item._id,
+          type: item.title || "Report",
+          desc: item.description || "No description provided",
+          status: item.status || "Pending",
+          loc: item.location || "Unknown location",
+          time: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Just now"
+        }));
+        setComplaints(mappedData);
+      }
+    } catch (error) {
+      console.error("Failed to fetch:", error);
+      Alert.alert("Error", "Could not connect to the server.");
+    } finally {
+      setLoading(false);
+    }
+  };
   const [selType, setSelType] = useState("");
   const [desc, setDesc] = useState("");
   const [loc, setLoc] = useState("");
@@ -82,7 +87,7 @@ export default function App() {
     resolved: complaints.filter((c) => c.status === "Resolved").length,
   };
 
-  const submitComplaint = () => {
+  const submitComplaint = async () => {
     if (!selType || !desc || !loc) {
       Alert.alert(
         "Missing Info",
@@ -90,25 +95,32 @@ export default function App() {
       );
       return;
     }
-    setComplaints([
-      {
-        id: Date.now(),
-        type: selType,
-        desc,
-        status: "Pending",
-        loc,
-        time: "Just now",
-      },
-      ...complaints,
-    ]);
-    setSelType("");
-    setDesc("");
-    setLoc("");
-    Alert.alert(
-      "✅ Submitted!",
-      "Your complaint has been submitted successfully.",
-    );
-    setScreen("track");
+
+    try {
+      setLoading(true);
+      await apiClient("/report", {
+        method: "POST",
+        body: JSON.stringify({
+          title: selType,
+          description: desc,
+          location: loc,
+        }),
+      });
+
+      setSelType("");
+      setDesc("");
+      setLoc("");
+      Alert.alert("✅ Submitted!", "Your complaint has been submitted successfully.");
+      
+      // Refresh list
+      await fetchReports();
+      setScreen("track");
+    } catch (error) {
+      console.error("Failed to submit:", error);
+      Alert.alert("Error", "Could not submit the report.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateStatus = (id: number, status: StatusKey) => {
